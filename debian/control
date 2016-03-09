@@ -1,0 +1,17 @@
+Source: sswsdk
+Maintainer: Chen Liu <liuchen@microsoft.com>
+Section: python
+Priority: optional
+Build-Depends: python-all (>= 2.6.6-3), debhelper (>= 7)
+Standards-Version: 3.9.1
+
+
+
+Package: python-sswsdk
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: Python library for utility functions and Redis operatoins
+
+
+
+
