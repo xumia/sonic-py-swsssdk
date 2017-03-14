@@ -134,9 +134,14 @@ class DBInterface(object):
 
     db_map = dict()
 
-    def __init__(self):
+    def __init__(self, **kwargs):
 
         super(DBInterface, self).__init__()
+
+        # Store the arguments for redis client
+        self.redis_kwargs = kwargs
+        if len(self.redis_kwargs) == 0:
+            self.redis_kwargs['unix_socket_path'] = self.REDIS_UNIX_SOCKET_PATH
 
         # For thread safety as recommended by python-redis
         # Create a separate client for each database
@@ -183,12 +188,7 @@ class DBInterface(object):
         if db_id is None:
             raise ValueError("No database ID configured for '{}'".format(db_name))
 
-        kwargs = dict(
-            unix_socket_path=self.REDIS_UNIX_SOCKET_PATH
-        )
-        kwargs.update(self.db_map[db_name])
-
-        client = redis.StrictRedis(**kwargs)
+        client = redis.StrictRedis(db=self.db_map[db_name]['db'], **self.redis_kwargs)
 
         # Enable the notification mechanism for keyspace events in Redis
         client.config_set('notify-keyspace-events', self.KEYSPACE_EVENTS)
