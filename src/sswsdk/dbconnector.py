@@ -10,7 +10,7 @@ from .interface import DBInterface
 
 class SonicV1Connector(DBInterface):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super(SonicV2Connector, self).__init__(**kwargs)
 
     pass
 
@@ -23,7 +23,7 @@ if len(SonicV1Connector.db_map) != len({v['db'] for k, v in SonicV1Connector.db_
 
 class SonicV2Connector(DBInterface):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super(SonicV2Connector, self).__init__(**kwargs)
 
     pass
 
