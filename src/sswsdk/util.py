@@ -12,7 +12,7 @@ from getopt import getopt
 # TODO: move to dbsync project.
 def usage(script_name):
     print('Usage: python ', script_name,
-          '-d [logging_level] -f [update_frequency] -h [help]')
+          '-t [host] -p [port] -s [unix_socket_path] -d [logging_level] -f [update_frequency] -h [help]')
 
 
 # TODO: move to dbsync project.
@@ -20,12 +20,18 @@ def process_options(script_name):
     """
     Process command line options
     """
-    options, remainders = getopt(sys.argv[1:], "d:f:h", ["debug=", "frequency=", "help"])
+    options, remainders = getopt(sys.argv[1:], "t:p:s:d:f:h", ["host=", "port=", "unix_socket_path=", "debug=", "frequency=", "help"])
 
     args = {}
     for (opt, arg) in options:
         if opt in ('-d', '--debug'):
             args['log_level'] = int(arg)
+        elif opt in ('-t', '--host'):
+            args['host'] = arg
+        elif opt in ('-p', '--port'):
+            args['port'] = int(arg)
+        elif opt in ('-s', 'unix_socket_path'):
+            args['unix_socket_path'] = arg
         elif opt in ('-f', '--frequency'):
             args['update_frequency'] = int(arg)
         elif opt in ('-h', '--help'):
