@@ -10,7 +10,7 @@ from .interface import DBInterface
 
 class SonicV1Connector(DBInterface):
     def __init__(self, **kwargs):
-        super(SonicV2Connector, self).__init__(**kwargs)
+        super(SonicV1Connector, self).__init__(**kwargs)
 
     pass
 
