@@ -2,6 +2,7 @@
 Syslog and daemon script utility library.
 """
 
+from __future__ import print_function
 import json
 import logging
 import logging.config
@@ -24,18 +25,22 @@ def process_options(script_name):
 
     args = {}
     for (opt, arg) in options:
-        if opt in ('-d', '--debug'):
-            args['log_level'] = int(arg)
-        elif opt in ('-t', '--host'):
-            args['host'] = arg
-        elif opt in ('-p', '--port'):
-            args['port'] = int(arg)
-        elif opt in ('-s', 'unix_socket_path'):
-            args['unix_socket_path'] = arg
-        elif opt in ('-f', '--frequency'):
-            args['update_frequency'] = int(arg)
-        elif opt in ('-h', '--help'):
-            usage(script_name)
+        try:
+            if opt in ('-d', '--debug'):
+                args['log_level'] = int(arg)
+            elif opt in ('-t', '--host'):
+                args['host'] = arg
+            elif opt in ('-p', '--port'):
+                args['port'] = int(arg)
+            elif opt in ('-s', 'unix_socket_path'):
+                args['unix_socket_path'] = arg
+            elif opt in ('-f', '--frequency'):
+                args['update_frequency'] = int(arg)
+            elif opt in ('-h', '--help'):
+                usage(script_name)
+        except ValueError as e:
+            print('Invalid option for {}: {}'.format(opt, e))
+            sys.exit(1)
 
     return args
 
