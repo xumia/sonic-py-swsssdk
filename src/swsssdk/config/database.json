@@ -19,6 +19,9 @@
       },
       "COUNTERS_DB": {
         "db": 2
+      },
+      "CONFIG_DB": {
+        "db": 4
       }
     }
   }

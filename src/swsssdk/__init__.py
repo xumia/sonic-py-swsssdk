@@ -33,6 +33,7 @@ _load_connector_map()
 
 try:
     from .dbconnector import SonicV1Connector, SonicV2Connector
+    from .configdb import ConfigDBConnector
 except (KeyError, ValueError):
     msg = "Failed to database connector objects -- incorrect database config schema."
     logger.exception(msg)
