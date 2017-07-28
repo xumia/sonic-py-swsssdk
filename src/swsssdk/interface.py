@@ -121,7 +121,7 @@ class DBInterface(object):
     Pub-sub keyspace pattern
     """
 
-    KEYSPACE_EVENTS = 'KEgh'
+    KEYSPACE_EVENTS = 'KEA'
     """
     In Redis, by default keyspace events notifications are disabled because while not
     very sensible the feature uses some CPU power. Notifications are enabled using
