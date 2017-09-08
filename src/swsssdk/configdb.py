@@ -18,12 +18,15 @@ Example:
 
 """
 
+import sys
 import time
 from .dbconnector import SonicV2Connector
 
 class ConfigDBConnector(SonicV2Connector):
 
     INIT_INDICATOR = 'CONFIG_DB_INITIALIZED'
+    TABLE_NAME_SEPARATOR = '|'
+    KEY_SEPARATOR = '|'
 
     def __init__(self):
         # Connect to Redis through TCP, which does not requires root.
@@ -84,7 +87,7 @@ class ConfigDBConnector(SonicV2Connector):
             if item['type'] == 'pmessage':
                 key = item['channel'].split(':', 1)[1]
                 try:
-                    (table, row) = key.split(':', 1)
+                    (table, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                     if self.handlers.has_key(table):
                         client = self.redis_clients[self.CONFIG_DB]
                         data = self.__raw_to_typed(client.hgetall(key))
@@ -94,12 +97,15 @@ class ConfigDBConnector(SonicV2Connector):
 
     def __raw_to_typed(self, raw_data):
         if raw_data == None:
-            return {}
+            return None
         typed_data = {}
         for key in raw_data:
+            # "NULL:NULL" is used as a placeholder for objects with no attributes
+            if key == "NULL":
+                pass
             # A column key with ending '@' is used to mark list-typed table items
             # TODO: Replace this with a schema-based typing mechanism.
-            if key.endswith("@"):
+            elif key.endswith("@"):
                 typed_data[key[:-1]] = raw_data[key].split(',')
             else:
                 typed_data[key] = raw_data[key]
@@ -108,6 +114,8 @@ class ConfigDBConnector(SonicV2Connector):
     def __typed_to_raw(self, typed_data):
         if typed_data == None:
             return None
+        elif typed_data == {}:
+            return { "NULL": "NULL" }
         raw_data = {}
         for key in typed_data:
             value = typed_data[key]
@@ -117,28 +125,50 @@ class ConfigDBConnector(SonicV2Connector):
                 raw_data[key] = value
         return raw_data
 
+    @staticmethod
+    def serialize_key(key):
+        if type(key) is tuple:
+            return ConfigDBConnector.KEY_SEPARATOR.join(key)
+        else:
+            return key
+
+    @staticmethod
+    def deserialize_key(key):
+        tokens = key.split(ConfigDBConnector.KEY_SEPARATOR)
+        if len(tokens) > 1:
+            return tuple(tokens)
+        else:
+            return key
+
     def set_entry(self, table, key, data):
         """Write a table entry to config db.
         Args:
             table: Table name.
-            key: Key of table entry.
-            data: Table row data in a form of dictionary {'column_key': 'value', ...}
+            key: Key of table entry, or a tuple of keys if it is a multi-key table.
+            data: Table row data in a form of dictionary {'column_key': 'value', ...}.
+                  Pass {} as data will create an entry with no column if not already existed.
+                  Pass None as data will delete the entry.
         """
+        key = self.serialize_key(key)
         client = self.redis_clients[self.CONFIG_DB]
-        _hash = '{}:{}'.format(table.upper(), key)
-        client.hmset(_hash, self.__typed_to_raw(data))
+        _hash = '{}{}{}'.format(table.upper(), self.TABLE_NAME_SEPARATOR, key)
+        if data == None:
+            client.delete(_hash)
+        else:
+            client.hmset(_hash, self.__typed_to_raw(data))
 
     def get_entry(self, table, key):
         """Read a table entry from config db.
         Args:
             table: Table name.
-            key: Key of table entry.
+            key: Key of table entry, or a tuple of keys if it is a multi-key table.
         Returns: 
             Table row data in a form of dictionary {'column_key': 'value', ...}
             Empty dictionary if table does not exist or entry does not exist.
         """
+        key = self.serialize_key(key)
         client = self.redis_clients[self.CONFIG_DB]
-        _hash = '{}:{}'.format(table.upper(), key)
+        _hash = '{}{}{}'.format(table.upper(), self.TABLE_NAME_SEPARATOR, key)
         return self.__raw_to_typed(client.hgetall(_hash))
 
     def get_table(self, table):
@@ -147,19 +177,20 @@ class ConfigDBConnector(SonicV2Connector):
             table: Table name.
         Returns: 
             Table data in a dictionary form of 
-            { 'row_key': {'column_key': 'value', ...}, ...}
+            { 'row_key': {'column_key': value, ...}, ...}
+            or { ('l1_key', 'l2_key', ...): {'column_key': value, ...}, ...} for a multi-key table.
             Empty dictionary if table does not exist.
         """
         client = self.redis_clients[self.CONFIG_DB]
-        pattern = '{}:*'.format(table.upper())
+        pattern = '{}{}*'.format(table.upper(), self.TABLE_NAME_SEPARATOR)
         keys = client.keys(pattern)
         data = {}
         for key in keys:
             try:
-                (_, row) = key.split(':', 1)
+                (_, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                 entry = self.__raw_to_typed(client.hgetall(key))
                 if entry:
-                    data[row] = entry
+                    data[self.deserialize_key(row)] = entry
             except ValueError:
                 pass    #Ignore non table-formated redis entries
         return data
@@ -170,6 +201,7 @@ class ConfigDBConnector(SonicV2Connector):
             data: config data in a dictionary form
             { 
                 'TABLE_NAME': { 'row_key': {'column_key': 'value', ...}, ...},
+                'MULTI_KEY_TABLE_NAME': { ('l1_key', 'l2_key', ...) : {'column_key': 'value', ...}, ...},
                 ...
             }
         """
@@ -184,6 +216,7 @@ class ConfigDBConnector(SonicV2Connector):
             Config data in a dictionary form of 
             { 
                 'TABLE_NAME': { 'row_key': {'column_key': 'value', ...}, ...},
+                'MULTI_KEY_TABLE_NAME': { ('l1_key', 'l2_key', ...) : {'column_key': 'value', ...}, ...},
                 ...
             }
         """
@@ -192,10 +225,10 @@ class ConfigDBConnector(SonicV2Connector):
         data = {}
         for key in keys:
             try:
-                (table_name, row) = key.split(':', 1)
+                (table_name, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                 entry = self.__raw_to_typed(client.hgetall(key))
-                if entry:
-                    data.setdefault(table_name, {})[row] = entry
+                if entry != None:
+                    data.setdefault(table_name, {})[self.deserialize_key(row)] = entry
             except ValueError:
                 pass    #Ignore non table-formated redis entries
         return data
