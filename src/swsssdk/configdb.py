@@ -189,7 +189,7 @@ class ConfigDBConnector(SonicV2Connector):
             try:
                 (_, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                 entry = self.__raw_to_typed(client.hgetall(key))
-                if entry:
+                if entry != None:
                     data[self.deserialize_key(row)] = entry
             except ValueError:
                 pass    #Ignore non table-formated redis entries
