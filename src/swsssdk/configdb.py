@@ -115,20 +115,17 @@ class ConfigDBConnector(SonicV2Connector):
 
     def __typed_to_raw(self, typed_data):
         if typed_data == None:
-            return None, None
+            return None
         elif typed_data == {}:
-            return { "NULL": "NULL" }, None
+            return { "NULL": "NULL" }
         raw_data = {}
-        del_data = []
         for key in typed_data:
             value = typed_data[key]
             if type(value) is list:
                 raw_data[key+'@'] = ','.join(value)
-            elif value is None:
-                del_data.append(key)
             else:
                 raw_data[key] = value
-        return raw_data, del_data
+        return raw_data
 
     @staticmethod
     def serialize_key(key):
@@ -153,7 +150,6 @@ class ConfigDBConnector(SonicV2Connector):
             data: Table row data in a form of dictionary {'column_key': 'value', ...}.
                   Pass {} as data will create an entry with no column if not already existed.
                   Pass None as data will delete the entry.
-                  Pass {'column_key': None, ...} as data will delete the key which value is None.
         """
         key = self.serialize_key(key)
         client = self.redis_clients[self.CONFIG_DB]
@@ -161,11 +157,7 @@ class ConfigDBConnector(SonicV2Connector):
         if data == None:
             client.delete(_hash)
         else:
-            raw_data, del_data = self.__typed_to_raw(data)
-            if del_data:
-                client.hdel(_hash, *del_data)
-            if raw_data:
-                client.hmset(_hash, raw_data)
+            client.hmset(_hash, self.__typed_to_raw(data))
 
     def get_entry(self, table, key):
         """Read a table entry from config db.
