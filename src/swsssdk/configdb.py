@@ -238,6 +238,18 @@ class ConfigDBConnector(SonicV2Connector):
                 pass    #Ignore non table-formated redis entries
         return data
 
+    def delete_table(self, table):
+        """Delete an entire table from config db.
+        Args:
+            table: Table name.
+        """
+        client = self.redis_clients[self.CONFIG_DB]
+        pattern = '{}{}*'.format(table.upper(), self.TABLE_NAME_SEPARATOR)
+        keys = client.keys(pattern)
+        data = {}
+        for key in keys:
+            client.delete(key)
+
     def mod_config(self, data):
         """Write multiple tables into config db.
            Extra entries/fields in the db which are not in the data are kept.
