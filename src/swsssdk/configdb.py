@@ -137,7 +137,7 @@ class ConfigDBConnector(SonicV2Connector):
             if type(value) is list:
                 raw_data[key+'@'] = ','.join(value)
             else:
-                raw_data[key] = value
+                raw_data[key] = str(value)
         return raw_data
 
     @staticmethod
@@ -145,7 +145,7 @@ class ConfigDBConnector(SonicV2Connector):
         if type(key) is tuple:
             return ConfigDBConnector.KEY_SEPARATOR.join(key)
         else:
-            return key
+            return str(key)
 
     @staticmethod
     def deserialize_key(key):
