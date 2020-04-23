@@ -6,7 +6,19 @@ import redis
 import argparse
 from multiprocessing import Pool
 
-def ping_single_instance(inst_info):
+def ping_unix_path_single_instance(inst_info):
+    inst_hostname = inst_info['hostname']
+    inst_unix_socket_path = inst_info['unix_socket_path']
+    r = redis.Redis(host=inst_hostname, unix_socket_path=inst_unix_socket_path)
+    rsp = False
+    msg = 'Could not connect to Redis at {}:{}: Connection refused'.format(inst_hostname, inst_unix_socket_path)
+    try:
+        rsp = r.ping()
+    except redis.exceptions.ConnectionError as e:
+        pass
+    return 'PONG' if rsp else msg
+
+def ping_tcp_single_instance(inst_info):
     inst_hostname = inst_info['hostname']
     inst_port = inst_info['port']
     r = redis.Redis(host=inst_hostname, port=inst_port)
@@ -18,8 +30,14 @@ def ping_single_instance(inst_info):
         pass
     return 'PONG' if rsp else msg
 
-def ping_all_instances():
-    db_insts = swsssdk.SonicDBConfig.get_instancelist()
+def ping_all_instances(namespace, use_unix_socket=False):
+    ping_single_instance = ping_unix_path_single_instance
+    # Use the tcp connectivity if namespace is local and unixsocket cmd_option is present.
+    if namespace is None:
+        if not use_unix_socket:
+            ping_single_instance = ping_tcp_single_instance
+
+    db_insts = swsssdk.SonicDBConfig.get_instancelist(namespace)
     # ping all redis instances together
     # TODO: if one of the ping failed, it could fail quickly and not necessary to wait all other pings
     p = Pool(len(db_insts))
@@ -35,8 +53,14 @@ def ping_all_instances():
         print('PONG')
         sys.exit(0)
 
-def execute_cmd(dbname, cmd):
-    dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=False)
+def execute_cmd(dbname, cmd, namespace, use_unix_socket=False):
+    if namespace is None:
+        if use_unix_socket:
+            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True)
+        else:
+            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=False)
+    else:
+        dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True, namespace=namespace)
     try:
         dbconn.connect(dbname)
     except RuntimeError:
@@ -64,22 +88,30 @@ def main():
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog=
 """
-Example 1: sonic-db-cli CONFIG_DB keys *
-Example 2: sonic-db-cli APPL_DB HGETALL VLAN_TABLE:Vlan10
+**sudo** needed for commands accesing a different namespace [-n], or using unixsocket connection [-s]
+
+Example 1: sonic-db-cli -n asic0 CONFIG_DB keys \*
+Example 2: sonic-db-cli -n asic2 APPL_DB HGETALL VLAN_TABLE:Vlan10
 Example 3: sonic-db-cli APPL_DB HGET VLAN_TABLE:Vlan10 mtu
-Example 4: sonic-db-cli APPL_DB EVAL "return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}" 2 k1 k2 v1 v2
+Example 4: sonic-db-cli -n asic3 APPL_DB EVAL "return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}" 2 k1 k2 v1 v2
 Example 5: sonic-db-cli PING
+Example 6: sonic-db-cli -s PING
 """)
+    parser.add_argument('-s', '--unixsocket', help="Override use of tcp_port and use unixsocket", action='store_true')
+    parser.add_argument('-n', '--namespace', type=str, help="Namespace string to use asic0/asic1.../asicn", default=None)
     parser.add_argument('db_or_op', type=str, help='Database name Or Unary operation(only PING supported)')
     parser.add_argument('cmd', nargs='*', type=str, help='Command to execute in database')
 
     args = parser.parse_args()
 
     if args.db_or_op:
+        # Load the database config for the namespace
+        if args.namespace is not None:
+            swsssdk.SonicDBConfig.load_sonic_global_db_config(namespace=args.namespace)
         if args.cmd:
-            execute_cmd(args.db_or_op, args.cmd)
+            execute_cmd(args.db_or_op, args.cmd, args.namespace, args.unixsocket)
         elif args.db_or_op == 'PING':
-            ping_all_instances()
+            ping_all_instances(args.namespace, args.unixsocket)
 #       TODO next PR will support 'SAVE' and 'FLUSHALL'
 #       elif args.db_or_op == 'SAVE':
 #       elif args.db_or_op == 'FLUSHALL':
