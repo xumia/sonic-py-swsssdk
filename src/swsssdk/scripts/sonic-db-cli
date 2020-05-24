@@ -57,11 +57,11 @@ def handle_all_instances(namespace, op, use_unix_socket=False):
 def execute_cmd(dbname, cmd, namespace, use_unix_socket=False):
     if namespace is None:
         if use_unix_socket:
-            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True)
+            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True, decode_responses=True)
         else:
-            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=False)
+            dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=False, decode_responses=True)
     else:
-        dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True, namespace=namespace)
+        dbconn = swsssdk.SonicV2Connector(use_unix_socket_path=True, namespace=namespace, decode_responses=True)
     try:
         dbconn.connect(dbname)
     except RuntimeError:
