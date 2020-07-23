@@ -114,7 +114,7 @@ class ConfigDBConnector(SonicV2Connector):
                     pass    #Ignore non table-formated redis entries
 
     def raw_to_typed(self, raw_data):
-        if raw_data == None:
+        if raw_data is None:
             return None
         typed_data = {}
         for raw_key in raw_data:
@@ -142,7 +142,7 @@ class ConfigDBConnector(SonicV2Connector):
         return typed_data
 
     def typed_to_raw(self, typed_data):
-        if typed_data == None:
+        if typed_data is None:
             return None
         elif typed_data == {}:
             return { "NULL": "NULL" }
@@ -183,7 +183,7 @@ class ConfigDBConnector(SonicV2Connector):
         key = self.serialize_key(key)
         client = self.get_redis_client(self.db_name)
         _hash = '{}{}{}'.format(table.upper(), self.TABLE_NAME_SEPARATOR, key)
-        if data == None:
+        if data is None:
             client.delete(_hash)
         else:
             original = self.get_entry(table, key)
@@ -205,7 +205,7 @@ class ConfigDBConnector(SonicV2Connector):
         key = self.serialize_key(key)
         client = self.get_redis_client(self.db_name)
         _hash = '{}{}{}'.format(table.upper(), self.TABLE_NAME_SEPARATOR, key)
-        if data == None:
+        if data is None:
             client.delete(_hash)
         else:
             client.hmset(_hash, self.typed_to_raw(data))
@@ -387,7 +387,7 @@ class ConfigDBPipeConnector(ConfigDBConnector):
         """
         key = self.serialize_key(key)
         _hash = '{}{}{}'.format(table.upper(), self.TABLE_NAME_SEPARATOR, key)
-        if data == None:
+        if data is None:
             pipe.delete(_hash)
         else:
             pipe.hmset(_hash, self.typed_to_raw(data))
@@ -407,7 +407,7 @@ class ConfigDBPipeConnector(ConfigDBConnector):
         pipe = client.pipeline()
         for table_name in data:
             table_data = data[table_name]
-            if table_data == None:
+            if table_data is None:
                 self.__delete_table(client, pipe, table_name)
                 continue
             for key in table_data:
