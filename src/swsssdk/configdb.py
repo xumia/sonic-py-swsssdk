@@ -120,7 +120,7 @@ class ConfigDBConnector(SonicV2Connector):
         for raw_key in raw_data:
             key = raw_key
             if PY3K:
-                key = raw_key.decode('utf-8')
+                key = raw_key.decode()
 
             # "NULL:NULL" is used as a placeholder for objects with no attributes
             if key == "NULL":
@@ -136,7 +136,7 @@ class ConfigDBConnector(SonicV2Connector):
                 typed_data[key[:-1]] = value
             else:
                 if PY3K:
-                    typed_data[key] = raw_data[raw_key].decode('utf-8')
+                    typed_data[key] = raw_data[raw_key].decode()
                 else:
                     typed_data[key] = raw_data[raw_key]
         return typed_data
@@ -240,7 +240,7 @@ class ConfigDBConnector(SonicV2Connector):
         for key in keys:
             try:
                 if PY3K:
-                    key = key.decode('utf-8')
+                    key = key.decode()
                 if split:
                     (_, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                     data.append(self.deserialize_key(row))
@@ -269,7 +269,7 @@ class ConfigDBConnector(SonicV2Connector):
                 entry = self.raw_to_typed(client.hgetall(key))
                 if entry != None:
                     if PY3K:
-                        key = key.decode('utf-8')
+                        key = key.decode()
                         (_, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                         data[self.deserialize_key(row)] = entry
                     else:
@@ -325,7 +325,7 @@ class ConfigDBConnector(SonicV2Connector):
         data = {}
         for key in keys:
             if PY3K:
-                key = key.decode('utf-8')
+                key = key.decode()
             try:
                 (table_name, row) = key.split(self.TABLE_NAME_SEPARATOR, 1)
                 entry = self.raw_to_typed(client.hgetall(key))
@@ -427,7 +427,7 @@ class ConfigDBPipeConnector(ConfigDBConnector):
             cur: poition of next item to scan
         """
         cur, keys = client.scan(cursor=cursor, match='*', count=self.REDIS_SCAN_BATCH_SIZE)
-        keys = [key.decode('utf-8') for key in keys if key != self.INIT_INDICATOR]
+        keys = [key.decode() for key in keys if key != self.INIT_INDICATOR]
         for key in keys:
             pipe.hgetall(key)
         records = pipe.execute()
