@@ -415,7 +415,7 @@ class ConfigDBPipeConnector(ConfigDBConnector):
         pipe.execute()
         client.bgsave()
 
-    def _get_config(self, client, pipe, data, cursor):
+    def __get_config(self, client, pipe, data, cursor):
         """Read config data in batches of size REDIS_SCAN_BATCH_SIZE using Redis pipelines
         Args:
             client: Redis client
@@ -454,9 +454,9 @@ class ConfigDBPipeConnector(ConfigDBConnector):
         pipe = client.pipeline()
         data = {}
 
-        cur = self._get_config(client, pipe, data, 0)
+        cur = self.__get_config(client, pipe, data, 0)
         while cur != 0:
-            cur = self._get_config(client, pipe, data, cur)
+            cur = self.__get_config(client, pipe, data, cur)
 
         return data
 
