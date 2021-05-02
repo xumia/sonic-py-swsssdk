@@ -3,8 +3,6 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pool: sonicbld
-
 trigger:
   branches:
     include:
@@ -21,19 +19,43 @@ stages:
   - job:
     displayName: "build"
     timeoutInMinutes: 60
+    pool:
+      vmImage: ubuntu-20.04
+
+    container:
+      image: sonicdev-microsoft.azurecr.io:443/sonic-slave-buster:latest
+
     steps:
     - checkout: self
       clean: true
       submodules: recursive
       displayName: 'Checkout code'
     - script: |
-        echo Hello
-        # the following is copied from jenkins
-        # set -ex
-        # python2 setup.py bdist_wheel
-        # python3 setup.py bdist_wheel
-        # mkdir -p target/python-wheels/
-        # cp dist/swsssdk-2.0.1-{py2,py3}-none-any.whl target/python-wheels/
-    - publish: $(System.DefaultWorkingDirectory)/target/python-wheels/
+        set -ex
+
+        python3 setup.py bdist_wheel
+        mkdir -p $(Build.ArtifactStagingDirectory)/target/python-wheels
+        cp dist/*.whl $(Build.ArtifactStagingDirectory)/target/python-wheels/
+      displayName: "Build"
+    - script: |
+        set -ex
+
+        sudo python3 -m pip install dist/swsssdk-2.0.1-py3-none-any.whl
+        python3 setup.py test
+      displayName: "Unit tests"
+    - publish: $(Build.ArtifactStagingDirectory)
       artifact: sonic-py-swsssdk
       displayName: "Archive artifacts"
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '$(System.DefaultWorkingDirectory)/test-results.xml'
+        testRunTitle: Python 3
+        failTaskOnFailedTests: true
+      condition: succeededOrFailed()
+      displayName: 'Publish Python 3 test results'
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov/'
+      displayName: 'Publish Python 3 test coverage'
