@@ -105,6 +105,10 @@ class SonicDBConfig(object):
         SonicDBConfig._sonic_db_config_init = True
 
     @staticmethod
+    def isInit():
+        return SonicDBConfig._sonic_db_config_init
+
+    @staticmethod
     def namespace_validation(namespace):
         # Check the namespace is valid.
         if namespace is None:
